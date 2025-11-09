@@ -61,18 +61,45 @@ await solvent.initializeTank(owner, agent.publicKey, rules);
 await solvent.depositSol(owner, agent.publicKey, 0.5 * LAMPORTS_PER_SOL);
 ```
 
-## 💻 Local Development
+### 2. The AI Agent (Spending)
+
+The autonomous agent uses its own keypair to spend from the tank.
+
 ```typescript
-// Clone Repo
-// git clone
-// cd solvent
+import { solvent } from "./sdk";
 
-// Build Program
-// anchor build
-// anchor deploy
+const apiProviderAddress = new PublicKey("...");
+const paymentAmount = 0.05 * LAMPORTS_PER_SOL;
 
-// Run Frontend
-// cd solvent-frontend
-// npm install
-// npm run dev
+// The agent tries to pay for an x402 API
+try {
+  await solvent.agentSpend(agent, paymentAmount, apiProviderAddress);
+  console.log("Payment successful!");
+} catch (e) {
+  // This will fail if paymentAmount > rules.maxSpendPerTx
+  console.error("Payment failed! (Blocked by on-chain rules)");
+}
+```
+
+## 💻 Local Development
+
+1. Clone Repo:
+```bash
+git clone [https://github.com/TeddyHuZz/solvent.git](https://github.com/TeddyHuZz/solvent.git)
+cd solvent
+```
+
+2. Build & Deploy Program:
+```bash
+cd solvent
+anchor build
+anchor deploy
+```
+
+3. Run Frontend:
+```bash
+cd solvent-frontend
+
+npm install
+npm run dev
 ```
