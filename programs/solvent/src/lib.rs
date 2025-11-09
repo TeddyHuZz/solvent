@@ -44,31 +44,37 @@ pub mod solvent {
     }
 
     // Instruction 4: agent_spend
-    pub fn agent_spend(ctx: Context<AgentSpend>, amount: u64) -> Result<()> {
+    pub fn agent_spend(ctx: Context<AgentSpend>, lamports: u64) -> Result<()> {
         let gas_tank = &ctx.accounts.gas_tank;
         
         require!(
-            amount <= gas_tank.rules.max_spend_per_tx,
+            lamports <= gas_tank.rules.max_spend_per_tx,
             ErrorCode::SpendingLimitExceeded
         );
         
         let gas_tank_lamports = gas_tank.to_account_info().lamports();
         require!(
-            gas_tank_lamports >= amount,
+            gas_tank_lamports >= lamports,
             ErrorCode::InsufficientFunds
         );
         
         // Use checked arithmetic
         **gas_tank.to_account_info().try_borrow_mut_lamports()? = gas_tank_lamports
-            .checked_sub(amount)
+            .checked_sub(lamports)
             .ok_or(ErrorCode::InsufficientFunds)?;
         
         let dest_lamports = ctx.accounts.destination.to_account_info().lamports();
         **ctx.accounts.destination.to_account_info().try_borrow_mut_lamports()? = dest_lamports
-            .checked_add(amount)
+            .checked_add(lamports)
             .ok_or(ErrorCode::InsufficientFunds)?;
         
-        msg!("Agent spent {} lamports to {:?}", amount, ctx.accounts.destination.key());
+        msg!("Agent spent {} lamports to {:?}", lamports, ctx.accounts.destination.key());
+        Ok(())
+    }
+
+    // Instruction 5: close_tank
+    // Allows the owner to close their gas tank and reclaim the SOL
+    pub fn close_tank(_ctx: Context<CloseTank>) -> Result<()> {
         Ok(())
     }
 }
@@ -135,6 +141,19 @@ pub struct AgentSpend<'info> {
     pub destination: AccountInfo<'info>,
     
     pub system_program: Program<'info, System>,
+}
+
+// Context for the close_tank instruction
+#[derive(Accounts)]
+pub struct CloseTank<'info> {
+    #[account(
+        mut,
+        has_one = owner,
+        close = owner // This is the magic! Anchor will transfer lamports and close the account.
+    )]
+    pub gas_tank: Account<'info, GasTank>,
+    #[account(mut)]
+    pub owner: Signer<'info>,
 }
 
 #[account]
